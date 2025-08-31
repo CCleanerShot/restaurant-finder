@@ -1,5 +1,5 @@
 {
-    "name": "worker-name",
+    "name": "restaurant-finder",
     "compatibility_date": "2025-08-31",
     "assets": {
         "directory": "./dist"
