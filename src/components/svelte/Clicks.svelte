@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { get } from "svelte/store";
     import { utils } from "~/common/utils";
     import type { ToggleableGoogleLocation } from "~/common/types";
     import { mapsState } from "~/client/svelte/states/mapsState.svelte";
@@ -18,6 +17,14 @@
         location.exported = !location.exported;
     };
 
+    const onclickLocationToggle = (click: CoordinateClick) => {
+        click.exported = !click.exported;
+
+        for (const location of click.locations) {
+            location.exported = click.exported;
+        }
+    };
+
     const onclickVisible = () => {
         isVisible = !isVisible;
     };
@@ -30,8 +37,6 @@
 
     onMount(() => {
         const unsub = selectedStore.subscribe(() => {
-            console.log($selectedStore);
-
             for (const oldMarker of mapsState.markers) {
                 oldMarker.pin.remove();
                 oldMarker.marker.remove();
@@ -100,6 +105,9 @@
                 <div>
                     <span>Radius:</span>
                     <span>{$selectedStore.radius}</span>
+                </div>
+                <div class="selected-buttons">
+                    <button onclick={() => onclickLocationToggle($selectedStore)}>Toggle On/Off Exported</button>
                 </div>
                 <div id="locations-container">
                     <span>Locations (click location to toggle):</span>
@@ -188,7 +196,7 @@
         font-weight: bold;
     }
 
-    #selected-container > * > *:not(:first-child) {
+    #selected-container > * > *:not(:not(button):first-child) {
         font-weight: normal;
     }
 

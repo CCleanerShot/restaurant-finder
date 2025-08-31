@@ -16,7 +16,7 @@
 </script>
 
 <div id="buttons">
-    <button id="data-export" onclick={onclickExport}>Export to Google Sheets</button>
+    <button id="data-export" onclick={onclickExport}>Export to Google Sheets (WIP)</button>
     <button id="data-toggle" onclick={onclickToggle} class={[optionsState.toggled ? "active" : ""]}>
         {#if optionsState.toggled}
             Deactivate

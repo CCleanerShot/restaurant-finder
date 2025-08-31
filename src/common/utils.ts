@@ -7,4 +7,11 @@ export const utils = {
         const path = location.replace(/\s/g, "+");
         return baseUrl + path;
     },
+    sleep: (milliseconds: number): Promise<void> => {
+        return new Promise((res, rej) => {
+            setTimeout(() => {
+                res();
+            }, milliseconds);
+        });
+    },
 };

@@ -35,6 +35,7 @@
             address: e.formattedAddress!,
             coord: { x: e.location!.lng(), y: e.location!.lat() },
             hours: e.regularOpeningHours!,
+            id: e.id!,
             name: e.displayName!,
             phone: e.nationalPhoneNumber!,
             website: e.websiteURI!,
