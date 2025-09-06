@@ -15,7 +15,7 @@
         }
 
         const [lat, lng] = [e.latLng!.lat(), e.latLng!.lng()];
-        const data = await utilsClient.actions("searchNearby", { lat: e.latLng!.lat(), lng: e.latLng!.lng(), radius: optionsState.radius });
+        const { data, error } = await utilsClient.actions("searchNearby", { lat: e.latLng!.lat(), lng: e.latLng!.lng(), radius: optionsState.radius });
 
         const coord: Coordinate = { x: lng, y: lat };
         const newClick = new CoordinateClick(coord, optionsState.radius, data!);

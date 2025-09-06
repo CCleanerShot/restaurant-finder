@@ -8,4 +8,5 @@ export const clientR2 = new S3({
         accountId: CLOUDFLARE_ACCOUNT_ID,
     },
     endpoint: `https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    region: "ENAM",
 });

@@ -1,12 +1,12 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { utils } from "~/common/utils";
+    import { utilsClient } from "~/client/utilsClient";
     import type { ToggleableGoogleLocation } from "~/common/types";
     import { mapsState } from "~/client/svelte/states/mapsState.svelte";
     import { googleState } from "~/client/svelte/states/googleState.svelte";
     import { selectedStore } from "~/client/svelte/stores/selectedStore.svelte";
     import type { CoordinateClick } from "~/common/classes/CoordinateClick.svelte";
-    import { actions } from "astro:actions";
 
     let isVisible: boolean = $state(true);
 
@@ -15,8 +15,7 @@
     };
 
     const onclickExport = async (click: CoordinateClick) => {
-        const response = await actions.exportToGoogleSheets({ locations: click.locations.filter((e) => e.exported) });
-        console.log(response);
+        const { data, error } = await utilsClient.actions("exportToGoogleSheets", { locations: click.locations.filter((e) => e.exported) });
     };
 
     const onclickLocation = (location: ToggleableGoogleLocation) => {

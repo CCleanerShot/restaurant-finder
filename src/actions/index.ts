@@ -122,7 +122,7 @@ export const server = {
 
                 // TODO: update existing rows for updated info. useful for when we add proper updates to the DB and when a restaurant is found before using the tool
             } catch (err) {
-                console.log(err);
+                console.log(`ERROR: ${err}`);
             }
 
             return "";
