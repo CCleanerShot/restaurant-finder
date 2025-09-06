@@ -1,9 +1,14 @@
 ---
+export const prerender = false;
+
 import Layout from "~/layouts/Layout.astro";
 import Clicks from "~/components/svelte/Clicks.svelte";
-import GoogleInit from "~/components/svelte/GoogleInit.svelte";
+import { clientSupabase } from "~/server/clientSupabase";
 import GoogleMap from "~/components/svelte/GoogleMap.svelte";
+import GoogleInit from "~/components/svelte/GoogleInit.svelte";
 import GoogleOptions from "~/components/svelte/GoogleOptions.svelte";
+
+clientSupabase;
 ---
 
 <Layout>

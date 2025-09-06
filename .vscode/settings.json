@@ -8,6 +8,9 @@
     "[typescript]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
     "editor.formatOnSave": true,
-    "workbench.editor.enablePreview": false
+    "workbench.editor.enablePreview": false,
 }

@@ -1,10 +1,8 @@
 <script lang="ts">
+    import { actions } from "astro:actions";
+    import { mapsState } from "~/client/svelte/states/mapsState.svelte";
     import { optionsState } from "~/client/svelte/states/optionsState.svelte";
-
-    const onclickExport = async (e: SvelteClickEvent) => {
-        const response = await fetch("/api/googlesheet");
-        console.log(response);
-    };
+    import { selectedStore } from "~/client/svelte/stores/selectedStore.svelte";
 
     const onclickToggle = (e: SvelteClickEvent) => {
         optionsState.toggled = !optionsState.toggled;
@@ -16,7 +14,6 @@
 </script>
 
 <div id="buttons">
-    <button id="data-export" onclick={onclickExport}>Export to Google Sheets (WIP)</button>
     <button id="data-toggle" onclick={onclickToggle} class={[optionsState.toggled ? "active" : ""]}>
         {#if optionsState.toggled}
             Deactivate

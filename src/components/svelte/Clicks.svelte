@@ -6,11 +6,17 @@
     import { googleState } from "~/client/svelte/states/googleState.svelte";
     import { selectedStore } from "~/client/svelte/stores/selectedStore.svelte";
     import type { CoordinateClick } from "~/common/classes/CoordinateClick.svelte";
+    import { actions } from "astro:actions";
 
     let isVisible: boolean = $state(true);
 
     const onclickCoord = (click: CoordinateClick) => {
         selectedStore.set(click);
+    };
+
+    const onclickExport = async (click: CoordinateClick) => {
+        const response = await actions.exportToGoogleSheets({ locations: click.locations.filter((e) => e.exported) });
+        console.log(response);
     };
 
     const onclickLocation = (location: ToggleableGoogleLocation) => {
@@ -108,6 +114,7 @@
                 </div>
                 <div class="selected-buttons">
                     <button onclick={() => onclickLocationToggle($selectedStore)}>Toggle On/Off Exported</button>
+                    <button onclick={() => onclickExport($selectedStore)}>Export to Google Sheets</button>
                 </div>
                 <div id="locations-container">
                     <span>Locations (click location to toggle):</span>

@@ -1,4 +1,4 @@
 export const optionsState = $state({
-    radius: 6000,
+    radius: 1000,
     toggled: true,
 });
