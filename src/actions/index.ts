@@ -5,7 +5,7 @@ import { clientSupabase } from "~/server/clientSupabase";
 import { ActionError, defineAction } from "astro:actions";
 import { googleLocationSchema } from "~/common/schemas.types";
 import { GOOGLE_SHEETS_SPREADSHEET_ID } from "astro:env/server";
-import { clientGoogleSheets } from "~/server/clientGoogleSheets";
+import { getClientGoogleSheets } from "~/server/clientGoogleSheets";
 
 export const server = {
     exportToGoogleSheets: defineAction({
@@ -13,7 +13,7 @@ export const server = {
             const { locations } = input;
 
             try {
-                const resultSheet = await clientGoogleSheets.spreadsheets.get({ spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID });
+                const resultSheet = await (await getClientGoogleSheets(context)).spreadsheets.get({ spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID });
 
                 if (!resultSheet.ok) {
                     console.log(`GOOGLE SHEETS ERROR: ${resultSheet.text()}`);
@@ -25,7 +25,9 @@ export const server = {
                 const { properties } = sheets.find((e) => e.properties?.title?.includes("TX"))!;
                 const { title } = properties!;
 
-                const resultCells = await clientGoogleSheets.spreadsheets.values.get({
+                const resultCells = await (
+                    await getClientGoogleSheets(context)
+                ).spreadsheets.values.get({
                     spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID,
                     range: title ?? "",
                 });
@@ -104,7 +106,9 @@ export const server = {
                     return array;
                 });
 
-                const resultAppend = await clientGoogleSheets.spreadsheets.values.append({
+                const resultAppend = await (
+                    await getClientGoogleSheets(context)
+                ).spreadsheets.values.append({
                     range: `A${rows.length + 1}`,
                     resource: { values: values },
                     spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID,
