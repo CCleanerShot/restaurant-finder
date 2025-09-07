@@ -5,6 +5,9 @@ import { defineConfig, envField } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
+    adapter: node({
+        mode: "standalone",
+    }),
     env: {
         schema: {
             CLOUDFLARE_ACCESS_KEY_ID: envField.string({ access: "secret", context: "server" }),
@@ -22,7 +25,5 @@ export default defineConfig({
         },
     },
     integrations: [svelte()],
-    adapter: node({
-        mode: "standalone",
-    }),
+    server: { host: true, port: 443 },
 });

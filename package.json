@@ -15,6 +15,7 @@
 		"@googleapis/sheets": "11.1.0",
 		"@supabase/supabase-js": "2.57.2",
 		"astro": "5.13.5",
+		"dotenv": "^17.2.2",
 		"google-auth-library": "10.3.0",
 		"svelte": "5.38.6",
 		"typescript": "5.9.2"
