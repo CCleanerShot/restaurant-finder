@@ -4,19 +4,17 @@
 	"version": "0.0.2",
 	"scripts": {
 		"dev": "astro dev",
-		"deploy": "npm run build && wrangler deploy",
-		"build": "astro build",
+		"build": "export $(cat .env) && astro build",
 		"preview": "astro preview",
 		"astro": "astro"
 	},
 	"dependencies": {
-		"@astrojs/cloudflare": "12.6.7",
+		"@astrojs/node": "9.4.3",
 		"@astrojs/svelte": "7.1.0",
-		"@aws-sdk/client-s3": "^3.883.0",
+		"@aws-sdk/client-s3": "3.883.0",
 		"@googleapis/sheets": "11.1.0",
 		"@supabase/supabase-js": "2.57.2",
 		"astro": "5.13.5",
-		"cloudflare": "5.0.0",
 		"google-auth-library": "10.3.0",
 		"svelte": "5.38.6",
 		"typescript": "5.9.2"

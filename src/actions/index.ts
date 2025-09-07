@@ -13,7 +13,7 @@ export const server = {
             const { locations } = input;
 
             try {
-                const resultSheet = await (await getClientGoogleSheets(context)).spreadsheets.get({ spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID });
+                const resultSheet = await (await getClientGoogleSheets()).spreadsheets.get({ spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID });
 
                 if (!resultSheet.ok) {
                     console.log(`GOOGLE SHEETS ERROR: ${resultSheet.text()}`);
@@ -26,7 +26,7 @@ export const server = {
                 const { title } = properties!;
 
                 const resultCells = await (
-                    await getClientGoogleSheets(context)
+                    await getClientGoogleSheets()
                 ).spreadsheets.values.get({
                     spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID,
                     range: title ?? "",
@@ -107,7 +107,7 @@ export const server = {
                 });
 
                 const resultAppend = await (
-                    await getClientGoogleSheets(context)
+                    await getClientGoogleSheets()
                 ).spreadsheets.values.append({
                     range: `A${rows.length + 1}`,
                     resource: { values: values },
@@ -122,7 +122,7 @@ export const server = {
 
                 // TODO: update existing rows for updated info. useful for when we add proper updates to the DB and when a restaurant is found before using the tool
             } catch (err) {
-                console.log(`ERROR: ${err}`);
+                console.log(`ERROR: `, err);
             }
 
             return "";

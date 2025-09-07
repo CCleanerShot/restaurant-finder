@@ -1,0 +1,40 @@
+name: update
+
+on:
+    push:
+        branches:
+            - "main"
+
+env:
+    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    AWS_REGION: us-east-1
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    AWS_SECRET_SSH_KEY: ${{ secrets.AWS_SECRET_SSH_KEY }}
+    AWS_SERVER_PUBLIC_IP: ${{ secrets.AWS_SERVER_PUBLIC_IP }}
+
+jobs:
+    update_aws:
+        name: update_aws
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Login to AWS ECR
+              uses: aws-actions/amazon-ecr-login@v1
+            - name: Git pull, rebuild
+              env:
+                  REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+                  REPOSITORY: restaurant-finder
+                  IMAGE_TAG: ${{ github.sha }}
+                  AWS_DEFAULT_REGION: us-east-1
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ env.AWS_SERVER_PUBLIC_IP }}
+                  username: ubuntu
+                  key: ${{ env.AWS_SECRET_SSH_KEY }}
+                  envs: AWS_SECRET_SSH_KEY,REGISTRY,REPOSITORY,IMAGE_TAG,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_DEFAULT_REGION,AWS_REGION
+                  script: |-
+                      cd ~/repos/restaurant-finder
+                      git pull
+                      npm run build
+                      node ./dist/server/entry.mjs

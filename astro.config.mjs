@@ -1,6 +1,6 @@
 // @ts-check
+import node from "@astrojs/node";
 import svelte from "@astrojs/svelte";
-import cloudflare from "@astrojs/cloudflare";
 import { defineConfig, envField } from "astro/config";
 
 // https://astro.build/config
@@ -22,17 +22,7 @@ export default defineConfig({
         },
     },
     integrations: [svelte()],
-    adapter: cloudflare({
-        imageService: "cloudflare",
-        platformProxy: import.meta.env.DEV
-            ? undefined
-            : {
-                  environment: "production",
-                  enabled: true,
-                  configPath: "wrangler.jsonc",
-                  persist: {
-                      path: "./.cache/wrangler/v3",
-                  },
-              },
+    adapter: node({
+        mode: "standalone",
     }),
 });
