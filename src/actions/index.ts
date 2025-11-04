@@ -1,13 +1,58 @@
 import { z } from "astro:schema";
 import { utils } from "~/common/utils";
-import type { GoogleLocation } from "~/common/types";
+import type { CustomLocation, GoogleLocation } from "~/common/types";
 import { clientSupabase } from "~/server/clientSupabase";
 import { ActionError, defineAction } from "astro:actions";
-import { googleLocationSchema } from "~/common/schemas.types";
+import { customLocationSchema, googleLocationSchema } from "~/common/schemas.types";
 import { GOOGLE_SHEETS_SPREADSHEET_ID } from "astro:env/server";
 import { getClientGoogleSheets } from "~/server/clientGoogleSheets";
+import { clientAnthropic } from "~/server/clientAnthropic";
 
 export const server = {
+    interpretMessage: defineAction({
+        handler: async (input, context) => {
+            const { locations, query } = input;
+
+            const results: CustomLocation[] = [];
+            const systemPrompt = `From the given query, only return a list of locations (separated by '|') that would closely match the description of the query. If you are unsure, simply return 'N/A'.`;
+            const list = `Locations:\n${locations.map((e) => `${e.restaurant_name} (${e.category.replace(/(\s|restaurant)+/g, "")})`).join("\n")}`;
+            const content = `${list}\n\nQuery:${query}`;
+
+            const response = await clientAnthropic.messages.create({
+                messages: [{ content: content, role: "user" }],
+                model: "claude-sonnet-4-5-20250929",
+                max_tokens: 2048,
+                system: systemPrompt,
+            });
+
+            const item = response.content[0];
+
+            if (item.type !== "text") {
+                console.log("Warning: The LLM did not return a response with type of 'text', something has gone wrong!");
+                return results;
+            }
+
+            const text = item.text;
+
+            if (text === "N/A") {
+                throw new ActionError({ code: "BAD_REQUEST", message: "The query passed in confused the LLM, or there are no locations to query on!" });
+            }
+
+            const names = text.split("|");
+
+            // n^2 computation but idc
+            for (const name of names) {
+                const location = locations.find((e) => e.restaurant_name === name);
+
+                if (location !== undefined) {
+                    results.push(location);
+                }
+            }
+
+            return results;
+        },
+        input: z.object({ locations: z.array(customLocationSchema), query: z.string() }),
+    }),
     exportToGoogleSheets: defineAction({
         handler: async (input, context) => {
             const { locations } = input;
