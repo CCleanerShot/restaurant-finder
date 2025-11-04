@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { utils } from "~/common/utils";
+    import MapControls from "./MapControls.svelte";
     import { utilsClient } from "~/client/utilsClient";
     import type { ToggleableGoogleLocation } from "~/common/types";
     import { mapsState } from "~/client/svelte/states/mapsState.svelte";
@@ -8,14 +8,13 @@
     import { sessionState, type Message } from "~/client/svelte/states/sessionState.svelte";
     import { selectedStore } from "~/client/svelte/stores/selectedStore.svelte";
     import type { CoordinateClick } from "~/common/classes/CoordinateClick.svelte";
-    import MapControls from "./MapControls.svelte";
 
     let isVisible: boolean = $state(true);
-    let drawerPosition = $state<'left' | 'right'>('left');
+    let drawerPosition = $state<"left" | "right">("left");
     let isVertical = $state(false);
     let queryInput = $state("");
     let isLoading = $state(false);
-    let locationScales: Record<string, number> = $state({});
+    let locationScores: Record<string, number> = $state({});
     let showOnboarding = $state(true);
     let messagesContainer: HTMLDivElement;
 
@@ -23,10 +22,19 @@
         isVertical = window.innerHeight > window.innerWidth;
     };
 
+    const HEX_VALUES = {
+        ARRAY: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"],
+        OBJECT: { "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, A: 10, B: 11, C: 12, D: 13, E: 14, F: 15 } as const,
+    };
+
+    const TO_FROM_BACKGROUNDS = ["000000", "00ff00"];
+    const TO_FROM_BORDER_COLORS = ["000000", "00ff00"];
+    const TO_FROM_GLYPH_COLORS = ["ffffff", "000000"];
+
     $effect(() => {
         checkOrientation();
-        window.addEventListener('resize', checkOrientation);
-        return () => window.removeEventListener('resize', checkOrientation);
+        window.addEventListener("resize", checkOrientation);
+        return () => window.removeEventListener("resize", checkOrientation);
     });
 
     const onclickCoord = (click: CoordinateClick) => {
@@ -54,7 +62,7 @@
     };
 
     const onclickPositionToggle = () => {
-        drawerPosition = drawerPosition === 'left' ? 'right' : 'left';
+        drawerPosition = drawerPosition === "left" ? "right" : "left";
     };
 
     $effect(() => {
@@ -71,7 +79,7 @@
         queryInput = "";
 
         // Add user message to conversation
-        sessionState.messages.push({ role: 'user', content: userMessage });
+        sessionState.messages.push({ role: "user", content: userMessage });
 
         // Scroll to bottom after adding user message
         setTimeout(() => {
@@ -81,7 +89,7 @@
         }, 100);
 
         if (!$selectedStore || !$selectedStore.locations || $selectedStore.locations.length === 0) {
-            sessionState.messages.push({ role: 'assistant', content: "Please click on the map first to select locations, then ask me about them." });
+            sessionState.messages.push({ role: "assistant", content: "Please click on the map first to select locations, then ask me about them." });
             setTimeout(() => {
                 if (messagesContainer) {
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -99,31 +107,31 @@
             });
 
             if (data && !error) {
-                // Add assistant response to conversation
-                sessionState.messages.push({ role: 'assistant', content: data.response });
-                
+                sessionState.messages.push({ role: "assistant", content: data.response });
+
                 // Scroll to bottom after adding message
                 setTimeout(() => {
                     if (messagesContainer) {
                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
                     }
                 }, 100);
-                
-                // Update location scales based on relevance scores
-                const newScales: Record<string, number> = {};
-                if (data.relevanceScores && Array.isArray(data.relevanceScores)) {
-                    for (const score of data.relevanceScores) {
-                        // Scale from 0.3 to 1.5 based on relevance (0.0 to 1.0)
-                        newScales[score.locationId] = 0.3 + (score.score * 1.2);
-                    }
-                    locationScales = newScales;
 
-                    // Update pin scales with animation
-                    updatePinScales();
+                const newScores: Record<string, number> = {};
+
+                if (data.relevanceScores && Array.isArray(data.relevanceScores)) {
+                    const array = data.relevanceScores as { name: string; score: number }[];
+
+                    for (const item of array) {
+                        newScores[item.name] = item.score;
+                    }
+
+                    locationScores = newScores;
+
+                    updatePins();
                 }
             } else {
                 const errorMsg = error?.message || "Sorry, I couldn't process that request. Please try again.";
-                sessionState.messages.push({ role: 'assistant', content: errorMsg });
+                sessionState.messages.push({ role: "assistant", content: errorMsg });
                 setTimeout(() => {
                     if (messagesContainer) {
                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -133,7 +141,7 @@
         } catch (err: any) {
             console.error("Classification error:", err);
             const errorMsg = err?.message || "Sorry, there was an error processing your request. Please try again.";
-            sessionState.messages.push({ role: 'assistant', content: errorMsg });
+            sessionState.messages.push({ role: "assistant", content: errorMsg });
             setTimeout(() => {
                 if (messagesContainer) {
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -144,24 +152,52 @@
         }
     };
 
-    const updatePinScales = () => {
-        if (!mapsState.markers || !googleState.MarkerLibrary) return;
+    const calculateNewColor = (color1: string, color2: string, magnitude: number): string => {
+        const letters1 = color1.split("").map((e) => e.toUpperCase()) as (keyof (typeof HEX_VALUES)["OBJECT"])[];
+        const letters2 = color2.split("").map((e) => e.toUpperCase()) as (keyof (typeof HEX_VALUES)["OBJECT"])[];
+        let result = "#";
+
+        for (let i = 0; i < letters1.length; i++) {
+            const value1 = HEX_VALUES["OBJECT"][letters1[i]];
+            const value2 = HEX_VALUES["OBJECT"][letters2[i]];
+            const difference = Math.max(value1, value2) - Math.min(value1, value2);
+            const newValue = Math.floor(difference * magnitude);
+            result += HEX_VALUES["ARRAY"][newValue];
+        }
+
+        console.log(magnitude, result);
+
+        return result;
+    };
+
+    const updatePins = () => {
+        if (!mapsState.markers || !googleState.MarkerLibrary) {
+            return;
+        }
+
+        console.log(locationScores);
 
         for (const { marker, pin } of mapsState.markers) {
-            // Skip the main click marker (red pin)
-            if (pin.scale === 0.5) continue;
-
-            const locationId = marker.title || "";
-            const targetScale = locationScales[locationId] || 1.0;
-
-            // Animate scale change with CSS transition
-            const pinElement = pin.element as HTMLElement;
-            if (pinElement) {
-                pinElement.style.transition = "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)";
-                pin.scale = targetScale;
-                // Force reflow to trigger animation
-                pinElement.offsetHeight;
+            if (pin.title === "Mouse Click") {
+                continue;
             }
+
+            const pinElement = pin.element as HTMLElement;
+
+            if (!pinElement) {
+                continue;
+            }
+
+            const locationName = marker.title || "";
+
+            const score = locationScores[locationName] ?? 0.0;
+            pinElement.style.transition = "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)";
+
+            pin.background = calculateNewColor(TO_FROM_BACKGROUNDS[0], TO_FROM_BACKGROUNDS[1], score);
+            pin.borderColor = calculateNewColor(TO_FROM_BORDER_COLORS[0], TO_FROM_BORDER_COLORS[1], score);
+            pin.glyphColor = calculateNewColor(TO_FROM_GLYPH_COLORS[0], TO_FROM_GLYPH_COLORS[1], score);
+            pin.scale = 0.3 + score * 1.2;
+            pinElement.offsetHeight; // Force reflow to trigger animation
         }
     };
 
@@ -173,7 +209,7 @@
             }
 
             if (!$selectedStore) {
-                locationScales = {};
+                locationScores = {};
                 return;
             }
 
@@ -192,18 +228,18 @@
 
             for (const loc of $selectedStore.locations) {
                 const position = new googleState.CoreLibrary.LatLng(loc.coord.y, loc.coord.x);
-                const scale = locationScales[loc.id] || 1.0;
-                const pin = new googleState.MarkerLibrary.PinElement({ 
-                    background: "#000000", 
-                    borderColor: "#000000", 
-                    glyphColor: "#ffffff",
-                    scale: scale
+                const scale = locationScores[loc.id] || 1.0;
+                const pin = new googleState.MarkerLibrary.PinElement({
+                    background: `#${TO_FROM_BACKGROUNDS[0]}`,
+                    borderColor: `#${TO_FROM_BORDER_COLORS[0]}`,
+                    glyphColor: `#${TO_FROM_GLYPH_COLORS[0]}`,
+                    scale: scale,
                 });
-                const marker = new googleState.MarkerLibrary.AdvancedMarkerElement({ 
-                    content: pin.element, 
-                    map: googleState.Map, 
-                    position, 
-                    title: loc.id 
+                const marker = new googleState.MarkerLibrary.AdvancedMarkerElement({
+                    content: pin.element,
+                    map: googleState.Map,
+                    position,
+                    title: loc.name,
                 });
                 newMarkers.push({ marker, pin });
             }
@@ -217,14 +253,14 @@
     });
 </script>
 
-<div class="clicks-panel" class:vertical={isVertical} class:left={drawerPosition === 'left'} class:right={drawerPosition === 'right'} class:visible={isVisible}>
+<div class="clicks-panel" class:vertical={isVertical} class:left={drawerPosition === "left"} class:right={drawerPosition === "right"} class:visible={isVisible}>
     <div class="clicks-header">
         <button class="hide-button" onclick={onclickVisible}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                {#if drawerPosition === 'left'}
-                    <path d="M15 18l-6-6 6-6"/>
+                {#if drawerPosition === "left"}
+                    <path d="M15 18l-6-6 6-6" />
                 {:else}
-                    <path d="M9 18l6-6-6-6"/>
+                    <path d="M9 18l6-6-6-6" />
                 {/if}
             </svg>
         </button>
@@ -233,35 +269,28 @@
     {#if isVisible}
         <div class="messages-container" bind:this={messagesContainer}>
             {#if showOnboarding && sessionState.messages.length === 0}
-                <div class="message assistant onboarding">
-                    Click around the map and ask me anything you want
-                </div>
+                <div class="message assistant onboarding">Click around the map and ask me anything you want</div>
             {/if}
             {#each sessionState.messages as message}
-                <div class="message" class:user={message.role === 'user'} class:assistant={message.role === 'assistant'}>
+                <div class="message" class:user={message.role === "user"} class:assistant={message.role === "assistant"}>
                     {message.content}
                 </div>
             {/each}
             {#if isLoading}
-                <div class="message assistant loading">
-                    Thinking...
-                </div>
+                <div class="message assistant loading">Thinking...</div>
             {/if}
         </div>
         <div class="query-section">
             <div class="query-input-group">
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     bind:value={queryInput}
                     placeholder="Ask about locations..."
                     class="query-input"
-                    onkeydown={(e) => e.key === 'Enter' && handleClassify()}
+                    onkeydown={(e) => e.key === "Enter" && handleClassify()}
                     disabled={isLoading}
                 />
-                <button 
-                    class="send-button" 
-                    onclick={handleClassify}
-                >
+                <button class="send-button" onclick={handleClassify}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -273,14 +302,20 @@
 </div>
 
 {#if !isVisible}
-    <button class="floating-toggle" class:left={drawerPosition === 'left'} class:right={drawerPosition === 'right'} class:vertical={isVertical} onclick={onclickVisible}>
+    <button
+        class="floating-toggle"
+        class:left={drawerPosition === "left"}
+        class:right={drawerPosition === "right"}
+        class:vertical={isVertical}
+        onclick={onclickVisible}
+    >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             {#if isVertical}
-                <path d="M12 19V5M5 12l7-7 7 7"/>
-            {:else if drawerPosition === 'left'}
-                <path d="M9 18l6-6-6-6"/>
+                <path d="M12 19V5M5 12l7-7 7 7" />
+            {:else if drawerPosition === "left"}
+                <path d="M9 18l6-6-6-6" />
             {:else}
-                <path d="M15 18l-6-6 6-6"/>
+                <path d="M15 18l-6-6 6-6" />
             {/if}
         </svg>
     </button>
@@ -299,7 +334,7 @@
         flex-direction: column;
         padding: 24px;
         border-radius: 24px;
-        box-shadow: 
+        box-shadow:
             20px 20px 60px rgba(0, 0, 0, 0.08),
             -20px -20px 60px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -359,13 +394,13 @@
         background: #f0f0f3;
         font-size: 18px;
         font-weight: 600;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #5a6c7d;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 
+        box-shadow:
             4px 4px 8px rgba(0, 0, 0, 0.06),
             -4px -4px 8px rgba(255, 255, 255, 0.9);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -378,7 +413,7 @@
     }
 
     .hide-button:hover {
-        box-shadow: 
+        box-shadow:
             6px 6px 12px rgba(0, 0, 0, 0.08),
             -6px -6px 12px rgba(255, 255, 255, 0.9);
         color: #2c3e50;
@@ -386,7 +421,7 @@
     }
 
     .hide-button:active {
-        box-shadow: 
+        box-shadow:
             inset 3px 3px 6px rgba(0, 0, 0, 0.08),
             inset -3px -3px 6px rgba(255, 255, 255, 0.9);
         transform: translateY(0);
@@ -441,7 +476,7 @@
         padding: 12px 16px;
         border-radius: 16px;
         font-size: 13px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         line-height: 1.6;
         max-width: 85%;
         word-wrap: break-word;
@@ -451,7 +486,7 @@
         align-self: flex-end;
         background: #000000;
         color: #ffffff;
-        box-shadow: 
+        box-shadow:
             4px 4px 8px rgba(0, 0, 0, 0.15),
             -4px -4px 8px rgba(255, 255, 255, 0.1);
     }
@@ -460,7 +495,7 @@
         align-self: flex-start;
         background: linear-gradient(145deg, #e8e8eb, #f8f8fb);
         color: #2c3e50;
-        box-shadow: 
+        box-shadow:
             8px 8px 16px rgba(163, 177, 198, 0.4),
             -8px -8px 16px rgba(255, 255, 255, 0.95),
             inset 1px 1px 2px rgba(255, 255, 255, 0.6),
@@ -475,7 +510,7 @@
     .message.assistant.onboarding {
         animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         background: linear-gradient(145deg, #e8e8eb, #f8f8fb);
-        box-shadow: 
+        box-shadow:
             10px 10px 20px rgba(163, 177, 198, 0.35),
             -10px -10px 20px rgba(255, 255, 255, 1),
             inset 2px 2px 4px rgba(255, 255, 255, 0.7),
@@ -507,10 +542,10 @@
         background: linear-gradient(145deg, #d8d8db, #e8e8eb);
         font-size: 13px;
         font-weight: 500;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #2c3e50;
         outline: none;
-        box-shadow: 
+        box-shadow:
             inset 6px 6px 12px rgba(163, 177, 198, 0.5),
             inset -6px -6px 12px rgba(255, 255, 255, 0.7),
             inset 1px 1px 2px rgba(163, 177, 198, 0.3),
@@ -520,7 +555,7 @@
 
     .query-input:focus {
         background: linear-gradient(145deg, #d8d8db, #e8e8eb);
-        box-shadow: 
+        box-shadow:
             inset 7px 7px 14px rgba(163, 177, 198, 0.55),
             inset -7px -7px 14px rgba(255, 255, 255, 0.75),
             inset 1px 1px 2px rgba(163, 177, 198, 0.35),
@@ -549,7 +584,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 
+        box-shadow:
             4px 4px 8px rgba(0, 0, 0, 0.2),
             -4px -4px 8px rgba(255, 255, 255, 0.1);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -562,7 +597,7 @@
     }
 
     .query-input-group .send-button:hover {
-        box-shadow: 
+        box-shadow:
             6px 6px 12px rgba(0, 0, 0, 0.3),
             -6px -6px 12px rgba(255, 255, 255, 0.1);
         transform: translateY(-1px);
@@ -571,12 +606,11 @@
     }
 
     .query-input-group .send-button:active {
-        box-shadow: 
+        box-shadow:
             inset 3px 3px 6px rgba(0, 0, 0, 0.4),
             inset -3px -3px 6px rgba(255, 255, 255, 0.1);
         transform: translateY(0);
     }
-
 
     .clicks-container {
         display: flex;
@@ -590,7 +624,7 @@
         background: transparent;
         font-size: 13px;
         font-weight: 600;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #5a6c7d;
         text-align: center;
         letter-spacing: 0.01em;
@@ -601,7 +635,7 @@
         text-align: center;
         color: #9ba5b0;
         font-size: 13px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         font-style: italic;
     }
 
@@ -615,12 +649,12 @@
         padding: 14px 20px;
         border-radius: 16px;
         background: #f0f0f3;
-        box-shadow: 
+        box-shadow:
             5px 5px 10px rgba(0, 0, 0, 0.06),
             -5px -5px 10px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.4);
         font-size: 13px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #5a6c7d;
         display: flex;
         align-items: center;
@@ -649,18 +683,18 @@
         background: #f0f0f3;
         font-size: 13px;
         font-weight: 600;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #5a6c7d;
         cursor: pointer;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 
+        box-shadow:
             5px 5px 10px rgba(0, 0, 0, 0.06),
             -5px -5px 10px rgba(255, 255, 255, 0.9);
         letter-spacing: 0.02em;
     }
 
     .action-button:hover {
-        box-shadow: 
+        box-shadow:
             8px 8px 16px rgba(0, 0, 0, 0.08),
             -8px -8px 16px rgba(255, 255, 255, 0.9);
         color: #2c3e50;
@@ -668,7 +702,7 @@
     }
 
     .action-button:active {
-        box-shadow: 
+        box-shadow:
             inset 4px 4px 8px rgba(0, 0, 0, 0.08),
             inset -4px -4px 8px rgba(255, 255, 255, 0.9);
         transform: translateY(0);
@@ -703,12 +737,12 @@
     .locations-title {
         font-size: 12px;
         font-weight: 700;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #2c3e50;
         padding: 12px 18px;
         border-radius: 16px;
         background: #f0f0f3;
-        box-shadow: 
+        box-shadow:
             4px 4px 8px rgba(0, 0, 0, 0.06),
             -4px -4px 8px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.4);
@@ -720,7 +754,7 @@
     .location-card {
         border-radius: 20px;
         background: #f0f0f3;
-        box-shadow: 
+        box-shadow:
             6px 6px 12px rgba(0, 0, 0, 0.06),
             -6px -6px 12px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.4);
@@ -731,7 +765,7 @@
     }
 
     .location-card:hover {
-        box-shadow: 
+        box-shadow:
             10px 10px 20px rgba(0, 0, 0, 0.08),
             -10px -10px 20px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -775,7 +809,7 @@
     .location-name {
         font-size: 18px;
         font-weight: 700;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #2c3e50;
         margin: 0;
         line-height: 1.3;
@@ -790,7 +824,7 @@
         padding: 4px 8px;
         border-radius: 8px;
         background: linear-gradient(145deg, #e8e8eb, #f8f8fb);
-        box-shadow: 
+        box-shadow:
             inset 2px 2px 4px rgba(0, 0, 0, 0.06),
             inset -2px -2px 4px rgba(255, 255, 255, 0.9);
     }
@@ -805,13 +839,13 @@
         font-size: 13px;
         font-weight: 700;
         color: #2c3e50;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     .review-count {
         font-size: 11px;
         color: #7a8a9a;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     .location-tags {
@@ -825,10 +859,10 @@
         border-radius: 12px;
         font-size: 11px;
         font-weight: 600;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         text-transform: capitalize;
         letter-spacing: 0.02em;
-        box-shadow: 
+        box-shadow:
             2px 2px 4px rgba(0, 0, 0, 0.06),
             -2px -2px 4px rgba(255, 255, 255, 0.9);
     }
@@ -854,7 +888,7 @@
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #5a6c7d;
         line-height: 1.4;
     }
@@ -895,15 +929,15 @@
         text-decoration: none;
         font-size: 12px;
         font-weight: 600;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 
+        box-shadow:
             2px 2px 4px rgba(0, 0, 0, 0.06),
             -2px -2px 4px rgba(255, 255, 255, 0.9);
     }
 
     .action-link:hover {
-        box-shadow: 
+        box-shadow:
             4px 4px 8px rgba(0, 0, 0, 0.08),
             -4px -4px 8px rgba(255, 255, 255, 0.9);
         transform: translateY(-1px);
@@ -911,7 +945,7 @@
     }
 
     .action-link:active {
-        box-shadow: 
+        box-shadow:
             inset 2px 2px 4px rgba(0, 0, 0, 0.08),
             inset -2px -2px 4px rgba(255, 255, 255, 0.9);
         transform: translateY(0);
@@ -930,11 +964,11 @@
         background: #f0f0f3;
         font-size: 13px;
         font-weight: 600;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #5a6c7d;
         cursor: pointer;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 
+        box-shadow:
             8px 8px 16px rgba(0, 0, 0, 0.08),
             -8px -8px 16px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.4);
@@ -975,7 +1009,7 @@
     }
 
     .floating-toggle.left:hover {
-        box-shadow: 
+        box-shadow:
             12px 12px 24px rgba(0, 0, 0, 0.1),
             -12px -12px 24px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -984,7 +1018,7 @@
     }
 
     .floating-toggle.right:hover {
-        box-shadow: 
+        box-shadow:
             12px 12px 24px rgba(0, 0, 0, 0.1),
             -12px -12px 24px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -993,7 +1027,7 @@
     }
 
     .floating-toggle.vertical:hover {
-        box-shadow: 
+        box-shadow:
             12px 12px 24px rgba(0, 0, 0, 0.1),
             -12px -12px 24px rgba(255, 255, 255, 0.9),
             inset 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -1002,21 +1036,21 @@
     }
 
     .floating-toggle.left:active {
-        box-shadow: 
+        box-shadow:
             inset 4px 4px 8px rgba(0, 0, 0, 0.08),
             inset -4px -4px 8px rgba(255, 255, 255, 0.9);
         transform: translateY(-50%);
     }
 
     .floating-toggle.right:active {
-        box-shadow: 
+        box-shadow:
             inset 4px 4px 8px rgba(0, 0, 0, 0.08),
             inset -4px -4px 8px rgba(255, 255, 255, 0.9);
         transform: translateY(-50%);
     }
 
     .floating-toggle.vertical:active {
-        box-shadow: 
+        box-shadow:
             inset 4px 4px 8px rgba(0, 0, 0, 0.08),
             inset -4px -4px 8px rgba(255, 255, 255, 0.9);
         transform: translateX(-50%);

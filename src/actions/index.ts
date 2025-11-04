@@ -6,11 +6,8 @@ import { ActionError, defineAction } from "astro:actions";
 import { customLocationSchema, googleLocationSchema } from "~/common/schemas.types";
 import { GOOGLE_SHEETS_SPREADSHEET_ID } from "astro:env/server";
 import { getClientGoogleSheets } from "~/server/clientGoogleSheets";
-<<<<<<< HEAD
 import { clientAnthropic } from "~/server/clientAnthropic";
-=======
 import { OPENAI_API_KEY } from "astro:env/server";
->>>>>>> 3a576d7365a815879065762a621af2ce316cbdae
 
 export const server = {
     interpretMessage: defineAction({
@@ -233,36 +230,39 @@ export const server = {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+                        Authorization: `Bearer ${OPENAI_API_KEY}`,
                     },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
                         messages: [
                             {
                                 role: "system",
-                                content: `You are a helpful assistant that analyzes restaurant locations based on user queries. 
-For each location provided, return a relevance score from 0.0 to 1.0 based on how well it matches the user's query.
-Also provide a helpful conversational response about the locations.
+                                content: `
+                                You are a helpful assistant that analyzes restaurant locations based on user queries. 
+                                For each location provided, return a relevance score from 0.0 to 1.0, (with 0.0 being unrelated, and 1.0 being an exact match) based on how well it fits the query's desire.
+                                When you make your score, be sure it is accurate, do not just give a high score unless you are sure it is related to the query. For example, if the prompt asks for a specific type of place, only use the restaurant's name and category to make your score. If the query is cost-related, you should account the price range.
+                                Also provide a helpful conversational response about the locations. 
 
-Return your response as JSON with this exact format:
-{
-  "relevanceScores": [{"locationId": "id1", "score": 0.9}, {"locationId": "id2", "score": 0.3}, ...],
-  "response": "Your conversational response here"
-}`,
+                                Return your response as JSON with this exact format:
+                                {
+                                "relevanceScores": [{"name": "Marco's Pizza", "score": 0.9}, {"name": "McDonalds", "score": 0.3}, ...],
+                                "response": "Your conversational response here"
+                                }`,
                             },
                             {
                                 role: "user",
                                 content: `User query: "${message}"
 
-Locations to analyze:
-${JSON.stringify(locations.map(loc => ({
-    id: loc.id,
-    name: loc.name,
-    address: loc.address,
-    category: (loc as any).category || "",
-    price_range: (loc as any).price_range || "",
-    review_points: (loc as any).review_points || 0,
-})))}`,
+                            Locations to analyze:
+                            ${JSON.stringify(
+                                locations.map((loc) => ({
+                                    name: loc.name,
+                                    address: loc.address,
+                                    category: (loc as any).category || "",
+                                    price_range: (loc as any).price_range || "",
+                                    review_points: (loc as any).review_points || 0,
+                                }))
+                            )}`,
                             },
                         ],
                         response_format: { type: "json_object" },
@@ -276,11 +276,11 @@ ${JSON.stringify(locations.map(loc => ({
                 }
 
                 const data = await response.json();
-                
+
                 if (!data.choices || !data.choices[0] || !data.choices[0].message) {
                     throw new Error("Invalid response format from OpenAI");
                 }
-                
+
                 const content = JSON.parse(data.choices[0].message.content);
 
                 return {
