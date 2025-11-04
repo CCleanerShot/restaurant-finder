@@ -17,6 +17,7 @@ export default defineConfig({
             CLOUDFLARE_SECRET_ACCESS_KEY: envField.string({ access: "secret", context: "server" }),
             GOOGLE_API_KEY: envField.string({ access: "secret", context: "server" }),
             GOOGLE_SHEETS_SPREADSHEET_ID: envField.string({ access: "secret", context: "server" }),
+            OPENAI_API_KEY: envField.string({ access: "secret", context: "server", optional: true }),
             PUBLIC_GOOGLE_MAPS_PLATFORM_API_KEY: envField.string({ access: "public", context: "client" }),
             PUBLIC_SUPABASE_ID: envField.string({ access: "public", context: "client" }),
             PUBLIC_SUPABASE_PUBLISHABLE_KEY: envField.string({ access: "public", context: "client" }),
@@ -25,5 +26,5 @@ export default defineConfig({
         },
     },
     integrations: [svelte()],
-    server: { host: true, port: 443 },
+    server: { host: true, port: 4321 },
 });
