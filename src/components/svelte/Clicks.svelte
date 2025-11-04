@@ -27,8 +27,8 @@
         OBJECT: { "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, A: 10, B: 11, C: 12, D: 13, E: 14, F: 15 } as const,
     };
 
-    const TO_FROM_BACKGROUNDS = ["000000", "00ff00"];
-    const TO_FROM_BORDER_COLORS = ["000000", "00ff00"];
+    const TO_FROM_BACKGROUNDS = ["000000", "ff0000"];
+    const TO_FROM_BORDER_COLORS = ["000000", "ff0000"];
     const TO_FROM_GLYPH_COLORS = ["ffffff", "000000"];
 
     $effect(() => {
@@ -193,6 +193,7 @@
             pin.borderColor = calculateNewColor(TO_FROM_BORDER_COLORS[0], TO_FROM_BORDER_COLORS[1], score);
             pin.glyphColor = calculateNewColor(TO_FROM_GLYPH_COLORS[0], TO_FROM_GLYPH_COLORS[1], score);
             pin.scale = 0.3 + score * 1.2;
+            pinElement.style.zIndex = `${score * 10}`;
             pinElement.offsetHeight; // Force reflow to trigger animation
         }
     };
