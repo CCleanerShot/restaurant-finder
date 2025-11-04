@@ -165,8 +165,6 @@
             result += HEX_VALUES["ARRAY"][newValue];
         }
 
-        console.log(magnitude, result);
-
         return result;
     };
 
@@ -174,8 +172,6 @@
         if (!mapsState.markers || !googleState.MarkerLibrary) {
             return;
         }
-
-        console.log(locationScores);
 
         for (const { marker, pin } of mapsState.markers) {
             if (pin.title === "Mouse Click") {
