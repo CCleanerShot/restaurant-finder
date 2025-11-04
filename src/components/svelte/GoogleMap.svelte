@@ -6,6 +6,7 @@
     import { CoordinateClick } from "~/common/classes/CoordinateClick.svelte";
     import { selectedStore } from "~/client/svelte/stores/selectedStore.svelte";
     import { utilsClient } from "~/client/utilsClient";
+    import MapControls from "./MapControls.svelte";
 
     let initialized = $state(false);
 
@@ -36,16 +37,33 @@
         const position = new globalThis.google.maps.LatLng(29.7601, -95.3701);
 
         // Center of Houston, TX
-        googleState.Map = new googleState.MapsLibrary.Map(document.getElementById("map")!, { center: position, mapId: "map-iframe", zoom: 12 });
+        googleState.Map = new googleState.MapsLibrary.Map(document.getElementById("map")!, { 
+            center: position, 
+            mapId: "map-iframe", 
+            zoom: 12,
+            mapTypeControl: false,
+            fullscreenControl: false,
+            streetViewControl: false,
+            zoomControl: false,
+            disableDefaultUI: true
+        });
         googleState.Map.addListener("click", onclick);
     });
 </script>
 
-<div id="map"></div>
+<div class="map-container">
+    <div id="map"></div>
+</div>
 
 <style>
-    #map {
-        height: 92vh;
+    .map-container {
+        position: relative;
+        height: 100vh;
         width: 100vw;
+    }
+    
+    #map {
+        height: 100%;
+        width: 100%;
     }
 </style>

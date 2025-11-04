@@ -6,7 +6,11 @@ import { ActionError, defineAction } from "astro:actions";
 import { customLocationSchema, googleLocationSchema } from "~/common/schemas.types";
 import { GOOGLE_SHEETS_SPREADSHEET_ID } from "astro:env/server";
 import { getClientGoogleSheets } from "~/server/clientGoogleSheets";
+<<<<<<< HEAD
 import { clientAnthropic } from "~/server/clientAnthropic";
+=======
+import { OPENAI_API_KEY } from "astro:env/server";
+>>>>>>> 3a576d7365a815879065762a621af2ce316cbdae
 
 export const server = {
     interpretMessage: defineAction({
@@ -215,5 +219,84 @@ export const server = {
         },
 
         input: z.object({ lat: z.number(), lng: z.number(), radius: z.number() }),
+    }),
+    classifyLocations: defineAction({
+        handler: async (input, context) => {
+            const { sessionId, message, locations } = input;
+
+            if (!OPENAI_API_KEY) {
+                throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: "OpenAI API key not configured" });
+            }
+
+            try {
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `You are a helpful assistant that analyzes restaurant locations based on user queries. 
+For each location provided, return a relevance score from 0.0 to 1.0 based on how well it matches the user's query.
+Also provide a helpful conversational response about the locations.
+
+Return your response as JSON with this exact format:
+{
+  "relevanceScores": [{"locationId": "id1", "score": 0.9}, {"locationId": "id2", "score": 0.3}, ...],
+  "response": "Your conversational response here"
+}`,
+                            },
+                            {
+                                role: "user",
+                                content: `User query: "${message}"
+
+Locations to analyze:
+${JSON.stringify(locations.map(loc => ({
+    id: loc.id,
+    name: loc.name,
+    address: loc.address,
+    category: (loc as any).category || "",
+    price_range: (loc as any).price_range || "",
+    review_points: (loc as any).review_points || 0,
+})))}`,
+                            },
+                        ],
+                        response_format: { type: "json_object" },
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("OpenAI API error:", response.status, errorText);
+                    throw new Error(`OpenAI API error: ${response.statusText}. Please check your API key.`);
+                }
+
+                const data = await response.json();
+                
+                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                    throw new Error("Invalid response format from OpenAI");
+                }
+                
+                const content = JSON.parse(data.choices[0].message.content);
+
+                return {
+                    relevanceScores: content.relevanceScores || [],
+                    response: content.response || "I couldn't generate a response. Please try again.",
+                };
+            } catch (err: any) {
+                console.error("OpenAI classification error:", err);
+                const errorMessage = err?.message || "Failed to classify locations";
+                throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: errorMessage });
+            }
+        },
+        input: z.object({
+            sessionId: z.string(),
+            message: z.string(),
+            locations: z.array(z.any()),
+        }),
     }),
 };
